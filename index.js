@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { fetch as curlFetch } from 'node-curl-impersonate';
+import wreq from 'wreq-js';
 
 const PORT = process.env.PORT || 3001;
 const PROXY_SECRET = process.env.PROXY_SECRET || 'change-me';
@@ -74,12 +74,11 @@ const server = createServer(async (req, res) => {
       headers['Content-Type'] = 'application/json';
     }
 
-    const response = await curlFetch(targetUrl, {
+    const response = await wreq.fetch(targetUrl, {
       method: req.method,
       headers,
       body: body || undefined,
-      impersonate: 'chrome146',
-      timeout: 15000,
+      impersonate: 'chrome_131',
     });
 
     const responseBody = await response.text();

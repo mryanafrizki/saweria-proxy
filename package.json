@@ -6,6 +6,6 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "node-curl-impersonate": "^1.2.0"
+    "wreq-js": "^2.3.0"
   }
 }
