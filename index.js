@@ -97,7 +97,7 @@ const server = createServer(async (req, res) => {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Proxy-Secret, X-Saweria-Token');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Proxy-Secret, X-Saweria-Token, X-Upstream-Proxy');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -106,7 +106,11 @@ const server = createServer(async (req, res) => {
 
   // Health check
   if (req.url === '/' && req.method === 'GET') {
-    return sendJson(res, 200, { status: 'ok', service: 'saweria-proxy' });
+    return sendJson(res, 200, {
+      status: 'ok',
+      service: 'saweria-proxy',
+      features: ['tls-impersonate', 'upstream-proxy', 'http', 'https', 'socks5'],
+    });
   }
 
   // Auth check
@@ -117,6 +121,10 @@ const server = createServer(async (req, res) => {
 
   // Extract Saweria token from header (optional — anonymous donations don't need it)
   const saweriaToken = req.headers['x-saweria-token'];
+
+  // Upstream proxy (optional) — supports http, https, socks5 with auth
+  // Format: http://user:pass@host:port, socks5://user:pass@host:port
+  const upstreamProxy = req.headers['x-upstream-proxy'] || null;
 
   // Rate limit per token or IP
   const rateLimitKey = saweriaToken || req.socket.remoteAddress || 'unknown';
@@ -147,12 +155,19 @@ const server = createServer(async (req, res) => {
       headers['Content-Type'] = 'application/json';
     }
 
-    const response = await wreq.fetch(targetUrl, {
+    const fetchOptions = {
       method: req.method,
       headers,
       body: body || undefined,
       impersonate: profile.impersonate,
-    });
+    };
+
+    // Chain through upstream proxy if provided
+    if (upstreamProxy) {
+      fetchOptions.proxy = upstreamProxy;
+    }
+
+    const response = await wreq.fetch(targetUrl, fetchOptions);
 
     const responseBody = await response.text();
 
