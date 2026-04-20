@@ -115,14 +115,12 @@ const server = createServer(async (req, res) => {
     return sendJson(res, 401, { error: 'Unauthorized' });
   }
 
-  // Extract Saweria token from header
+  // Extract Saweria token from header (optional — anonymous donations don't need it)
   const saweriaToken = req.headers['x-saweria-token'];
-  if (!saweriaToken) {
-    return sendJson(res, 400, { error: 'Missing X-Saweria-Token header' });
-  }
 
-  // Rate limit per token
-  if (!checkRateLimit(saweriaToken)) {
+  // Rate limit per token or IP
+  const rateLimitKey = saweriaToken || req.socket.remoteAddress || 'unknown';
+  if (!checkRateLimit(rateLimitKey)) {
     return sendJson(res, 429, { error: 'Rate limit exceeded. Max 10 requests per 10 seconds.' });
   }
 
@@ -138,8 +136,12 @@ const server = createServer(async (req, res) => {
     const headers = {
       ...BASE_HEADERS,
       ...profile.headers,
-      'Authorization': saweriaToken,
     };
+
+    // Only add Authorization if token provided
+    if (saweriaToken && saweriaToken !== 'none') {
+      headers['Authorization'] = saweriaToken;
+    }
 
     if (body) {
       headers['Content-Type'] = 'application/json';
